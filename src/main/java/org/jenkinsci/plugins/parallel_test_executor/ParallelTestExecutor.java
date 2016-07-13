@@ -196,8 +196,10 @@ public class ParallelTestExecutor extends Builder {
                 r.add(new InclusionExclusionPattern(elements, shouldIncludeElements));
                 for (TestClass d : sorted) {
                     if (shouldIncludeElements == (d.knapsack == k)) {
-                        elements.add(d.getSourceFileName(".java"));
-                        elements.add(d.getSourceFileName(".class"));
+                        // In order to make it work with yate, change this to .exp
+                        // elements.add(d.getSourceFileName(".java"));
+                        // elements.add(d.getSourceFileName(".class"));
+                        elements.add(d.getSourceFileName(".exp"));
                     }
                 }
             }
