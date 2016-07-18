@@ -10,6 +10,7 @@ import hudson.plugins.parameterizedtrigger.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.tasks.junit.ClassResult;
+import hudson.tasks.junit.CaseResult; // added
 import hudson.tasks.junit.JUnitResultArchiver;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.TabulatedResult;
@@ -199,7 +200,12 @@ public class ParallelTestExecutor extends Builder {
                         // In order to make it work with yate, change this to .exp
                         // elements.add(d.getSourceFileName(".java"));
                         // elements.add(d.getSourceFileName(".class"));
-                        elements.add(d.getSourceFileName(".exp"));
+                    	String lmnt = d.getSourceFileName(".exp");
+                    	String[] lmnts = lmnt.split("/");
+                    	lmnt = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"
+                    			+ lmnts[0] + ".test/" + lmnts[1];                    	
+                    	elements.add(lmnt);
+                        // elements.add(d.getSourceFileName(".exp")); // changed by Johannes tk
                     }
                 }
             }
@@ -262,15 +268,22 @@ public class ParallelTestExecutor extends Builder {
      * Recursive visits the structure inside {@link hudson.tasks.test.TestResult}.
      */
     static private void collect(TestResult r, Map<String, TestClass> data) {
-        if (r instanceof ClassResult) {
-            ClassResult cr = (ClassResult) r;
-            TestClass dp = new TestClass(cr);
+    	if (r instanceof CaseResult) {
+    		CaseResult cr = (CaseResult) r;
+    		TestClass dp = new TestClass(cr);
             data.put(dp.className, dp);
             return; // no need to go deeper
-        }
+    	}
+        // if (r instanceof ClassResult) {
+        //     ClassResult cr = (ClassResult) r;
+        //     TestClass dp = new TestClass(cr);
+        //     data.put(dp.className, dp);
+        //     return; // no need to go deeper
+        // }
         if (r instanceof TabulatedResult) {
             TabulatedResult tr = (TabulatedResult) r;
             for (TestResult child : tr.getChildren()) {
+            	System.out.println(child);
                 collect(child, data);
             }
         }
