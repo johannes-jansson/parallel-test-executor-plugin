@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.parallel_test_executor;
 
 import hudson.tasks.junit.ClassResult;
-import hudson.tasks.junit.CaseResult; // tk added
+import hudson.tasks.junit.CaseResult;
 import org.jenkinsci.plugins.parallel_test_executor.ParallelTestExecutor.Knapsack;
 
 /**
@@ -25,7 +25,7 @@ public class TestClass implements Comparable<TestClass> {
         this.duration = (long)(cr.getDuration()*1000);  // milliseconds is a good enough precision for us
     }
     
-    // Added by Johannes tk
+    // Constructor for working with CaseResult, required of yate tk
     public TestClass(CaseResult cr) {
         String pkgName = cr.getParent().getName();
         if (pkgName.equals("(root)"))   // UGH
