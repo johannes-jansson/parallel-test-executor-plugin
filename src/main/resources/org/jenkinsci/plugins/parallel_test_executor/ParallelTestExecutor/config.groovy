@@ -35,4 +35,7 @@ f.advanced {
     f.entry(title:"Automatically archive JUnit test results", field:"archiveTestResults") {
         f.checkbox(default: true)
     }
+    f.entry(title:"This is a yate test job", field:"yateTestJob") {
+        f.checkbox(default: true)
+    }
 }

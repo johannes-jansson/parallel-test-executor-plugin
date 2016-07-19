@@ -43,16 +43,19 @@ public class ParallelTestExecutor extends Builder {
     private String includesPatternFile;
     private String testReportFiles;
     private boolean doNotArchiveTestResults = false;
+    private static boolean yateTestJob = true; // added tk
     private List<AbstractBuildParameters> parameters;
 
     @DataBoundConstructor
-    public ParallelTestExecutor(Parallelism parallelism, String testJob, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters) {
+    // I added the yateTestJob tk
+    public ParallelTestExecutor(Parallelism parallelism, String testJob, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, boolean yateTestJob) {
         this.parallelism = parallelism;
         this.testJob = testJob;
         this.patternFile = patternFile;
         this.testReportFiles = testReportFiles;
         this.parameters = parameters;
         this.doNotArchiveTestResults = !archiveTestResults;
+        this.yateTestJob = yateTestJob; // added tk
     }
 
     public Parallelism getParallelism() {
@@ -83,6 +86,11 @@ public class ParallelTestExecutor extends Builder {
 
     public boolean isArchiveTestResults() {
         return !doNotArchiveTestResults;
+    }
+
+    // added tk
+    public boolean isYateTestJob() {
+        return yateTestJob;
     }
 
     public List<AbstractBuildParameters> getParameters() {
@@ -198,16 +206,17 @@ public class ParallelTestExecutor extends Builder {
                 for (TestClass d : sorted) {
                     if (shouldIncludeElements == (d.knapsack == k)) {
                         // In order to make it work with yate, change this to .exp tk
-                        // elements.add(d.getSourceFileName(".java"));
-                        // elements.add(d.getSourceFileName(".class"));
-                    	String lmnt = d.getSourceFileName(".exp");
-                    	
-                    	// String modifications, mostly hard coded, needs to be changed... tk
-                    	String[] lmnts = lmnt.split("/");
-                    	lmnt = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"
-                    			+ lmnts[0] + ".test/" + lmnts[1];                    	
-                    	elements.add(lmnt);
-                        // elements.add(d.getSourceFileName(".exp"));
+                        if (!yateTestJob) {
+                            elements.add(d.getSourceFileName(".java"));
+                            elements.add(d.getSourceFileName(".class"));
+                        } else {
+                    	      // String modifications, mostly hard coded, needs to be changed... tk
+                    	      String lmnt = d.getSourceFileName(".exp");
+                    	      String[] lmnts = lmnt.split("/");
+                    	      lmnt = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"
+                    	    	    + lmnts[0] + ".test/" + lmnts[1];                    	
+                    	      elements.add(lmnt);
+                        }
                     }
                 }
             }
@@ -270,19 +279,19 @@ public class ParallelTestExecutor extends Builder {
      * Recursive visits the structure inside {@link hudson.tasks.test.TestResult}.
      */
     static private void collect(TestResult r, Map<String, TestClass> data) {
-    	// changed in order to work with yate tk
-    	if (r instanceof CaseResult) {
-    		CaseResult cr = (CaseResult) r;
-    		TestClass dp = new TestClass(cr);
+    	  // changed in order to work with yate tk
+    	  if (yateTestJob && r instanceof CaseResult) {
+    	  	  CaseResult cr = (CaseResult) r;
+    	  	  TestClass dp = new TestClass(cr);
             data.put(dp.className, dp);
             return; // no need to go deeper
-    	}
-        // if (r instanceof ClassResult) {
-        //     ClassResult cr = (ClassResult) r;
-        //     TestClass dp = new TestClass(cr);
-        //     data.put(dp.className, dp);
-        //     return; // no need to go deeper
-        // }
+    	  }
+        if (!yateTestJob && r instanceof ClassResult) {
+            ClassResult cr = (ClassResult) r;
+            TestClass dp = new TestClass(cr);
+            data.put(dp.className, dp);
+            return; // no need to go deeper
+        }
         if (r instanceof TabulatedResult) {
             TabulatedResult tr = (TabulatedResult) r;
             for (TestResult child : tr.getChildren()) {
