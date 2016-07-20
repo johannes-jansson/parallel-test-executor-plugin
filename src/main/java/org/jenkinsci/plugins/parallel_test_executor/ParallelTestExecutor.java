@@ -44,11 +44,12 @@ public class ParallelTestExecutor extends Builder {
     private String testReportFiles;
     private boolean doNotArchiveTestResults = false;
     private static boolean yateTestJob = true; // added tk
+    private static String yatePath = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"; // added tk
     private List<AbstractBuildParameters> parameters;
 
     @DataBoundConstructor
-    // I added the yateTestJob tk
-    public ParallelTestExecutor(Parallelism parallelism, String testJob, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, boolean yateTestJob) {
+    // I added the yateTestJob and yatePath tk
+    public ParallelTestExecutor(Parallelism parallelism, String testJob, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, boolean yateTestJob, String yatePath) {
         this.parallelism = parallelism;
         this.testJob = testJob;
         this.patternFile = patternFile;
@@ -56,6 +57,7 @@ public class ParallelTestExecutor extends Builder {
         this.parameters = parameters;
         this.doNotArchiveTestResults = !archiveTestResults;
         this.yateTestJob = yateTestJob; // added tk
+        this.yatePath = yatePath; // added tk
     }
 
     public Parallelism getParallelism() {
@@ -91,6 +93,10 @@ public class ParallelTestExecutor extends Builder {
     // added tk
     public boolean isYateTestJob() {
         return yateTestJob;
+    }
+    
+    public String getYatePath() {
+    	return yatePath;
     }
 
     public List<AbstractBuildParameters> getParameters() {
@@ -213,8 +219,8 @@ public class ParallelTestExecutor extends Builder {
                     	      // String modifications, mostly hard coded, needs to be changed... tk
                     	      String lmnt = d.getSourceFileName(".exp");
                     	      String[] lmnts = lmnt.split("/");
-                    	      lmnt = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"
-                    	    	    + lmnts[0] + ".test/" + lmnts[1];                    	
+                    	      //lmnt = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"
+                    	      lmnt = yatePath + lmnts[0] + ".test/" + lmnts[1];                    	
                     	      elements.add(lmnt);
                         }
                     }

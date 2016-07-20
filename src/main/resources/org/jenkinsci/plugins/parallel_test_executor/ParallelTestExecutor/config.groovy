@@ -38,4 +38,7 @@ f.advanced {
     f.entry(title:"This is a yate test job", field:"yateTestJob") {
         f.checkbox(default: true)
     }
+    f.entry(title:"Path to yate test engine and tests", field:"yatePath") {
+        f.textbox(default: '/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/')
+    }
 }
