@@ -42,17 +42,18 @@ public class ParallelTestExecutor extends Builder {
     private Parallelism parallelism;
 
     private String testJob;
-    private String testList;
+    private static String testList = "pass.lst"; // added? tk SHOULD NOT BE STATIC!
     private String patternFile;
     private String includesPatternFile;
     private String testReportFiles;
     private boolean doNotArchiveTestResults = false;
-    private static String yatePath = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"; // added tk
+    private static String yatePath = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"; // added tk SHOULD NOT BE STATIC!
+    private static int defaultTime = 10; //millis added tk SHOULD NOT BE STATIC!
     private List<AbstractBuildParameters> parameters;
 
     @DataBoundConstructor
     // I added the yatePath tk
-    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, String yatePath) {
+    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, String yatePath, int defaultTime) {
         this.parallelism = parallelism;
         this.testJob = testJob;
         this.testList = testList;
@@ -61,6 +62,7 @@ public class ParallelTestExecutor extends Builder {
         this.parameters = parameters;
         this.doNotArchiveTestResults = !archiveTestResults;
         this.yatePath = yatePath; // added tk
+        this.defaultTime = defaultTime * 1000; // convert from s to ms added tk
     }
 
     public Parallelism getParallelism() {
@@ -166,8 +168,7 @@ public class ParallelTestExecutor extends Builder {
             Map<String/*fully qualified class name*/, TestClass> data = new TreeMap<String, TestClass>();
             
             // added tk
-            List<String> names = readInputFile("pass.lst");
-            long defaultTime = 10; //millis
+            List<String> names = readInputFile(testList);
 
             // added tk
     		TestClass dp;

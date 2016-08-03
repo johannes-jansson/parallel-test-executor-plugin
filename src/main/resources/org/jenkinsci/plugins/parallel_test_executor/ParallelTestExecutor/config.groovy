@@ -26,6 +26,9 @@ f.entry(title:"Test report directory in the test job", field:"testReportFiles") 
 f.entry(title:"Path to yate test engine and tests", field:"yatePath") {
     f.textbox(default: '/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/')
 }
+f.entry(title:"Default runtime for new tests (in seconds)", field:"defaultTime") {
+    f.textbox(default: 0.01)
+}
 f.block {
     f.entry(title:'Parameters for test job', help:descriptor.getHelpFile('parameters')) {
         f.repeatableHeteroProperty(
