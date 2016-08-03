@@ -47,13 +47,12 @@ public class ParallelTestExecutor extends Builder {
     private String includesPatternFile;
     private String testReportFiles;
     private boolean doNotArchiveTestResults = false;
-    private static boolean yateTestJob = true; // added tk
     private static String yatePath = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"; // added tk
     private List<AbstractBuildParameters> parameters;
 
     @DataBoundConstructor
-    // I added the yateTestJob and yatePath tk
-    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, boolean yateTestJob, String yatePath) {
+    // I added the yatePath tk
+    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, String yatePath) {
         this.parallelism = parallelism;
         this.testJob = testJob;
         this.testList = testList;
@@ -61,7 +60,6 @@ public class ParallelTestExecutor extends Builder {
         this.testReportFiles = testReportFiles;
         this.parameters = parameters;
         this.doNotArchiveTestResults = !archiveTestResults;
-        this.yateTestJob = yateTestJob; // added tk
         this.yatePath = yatePath; // added tk
     }
 
@@ -99,11 +97,6 @@ public class ParallelTestExecutor extends Builder {
         return !doNotArchiveTestResults;
     }
 
-    // added tk
-    public boolean isYateTestJob() {
-        return yateTestJob;
-    }
-    
     public String getYatePath() {
     	return yatePath;
     }
@@ -171,49 +164,18 @@ public class ParallelTestExecutor extends Builder {
         } else {
 
             Map<String/*fully qualified class name*/, TestClass> data = new TreeMap<String, TestClass>();
-
-            /**
-             * Add the manual list to data here! tk
-             
             
-            List<String> names = new ArrayList<String>();
-            String nbr;
-            for (int i=1; i<=20; i++) {
-            	if (i < 10) {nbr = "0" + i;} else {nbr = "" + i;}
-            	//names.add("/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/tests.test/pass_"
-            	names.add("tests.pass_"
-            			+ nbr);
-            }
-
-    		TestClass dp;
-            for (int i=0; i<20; i++) {
-            	dp = new TestClass(names.get(i), 10); // should be a variable tk
-            	data.put(dp.className, dp);
-            }
-
-
-            // CaseResult cr = new CaseResult(SuiteResult parent, String testName, String errorStackTrace)
-            // TestClass r = new TestClass(cr) 
-            
-            *
-             * End of temporary manual list thingy tk
-             */
-            
-            /**
-             * Read input file
-             */
+            // added tk
             List<String> names = readInputFile("pass.lst");
             long defaultTime = 10; //millis
 
+            // added tk
     		TestClass dp;
             for (int i=0; i<names.size(); i++) {
             	dp = new TestClass(names.get(i), defaultTime); // should be a variable tk
             	data.put(dp.className, dp);
             }
 
-            /**
-             * END OF read input file
-             */
 
             collect(tr, data);
 
@@ -264,18 +226,13 @@ public class ParallelTestExecutor extends Builder {
                 r.add(new InclusionExclusionPattern(elements, shouldIncludeElements));
                 for (TestClass d : sorted) {
                     if (shouldIncludeElements == (d.knapsack == k)) {
-                        // In order to make it work with yate, change this to .exp tk
-                        if (!yateTestJob) {
-                            elements.add(d.getSourceFileName(".java"));
-                            elements.add(d.getSourceFileName(".class"));
-                        } else {
-                    	      // String modifications, mostly hard coded, needs to be changed... tk
-                    	      String lmnt = d.getSourceFileName(".exp");
-                    	      String[] lmnts = lmnt.split("/");
-                    	      //lmnt = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"
-                    	      lmnt = yatePath + lmnts[0] + ".test/" + lmnts[1];                    	
-                    	      elements.add(lmnt);
-                        }
+                    	// String modifications, mostly hard coded, needs to be changed... tk
+                    	String lmnt = d.getSourceFileName(".exp");
+                    	String[] lmnts = lmnt.split("/");
+                    	lmnt = yatePath + lmnts[0] + ".test/" + lmnts[1];                    	
+                    	elements.add(lmnt);
+                        //elements.add(d.getSourceFileName(".java"));
+                        //elements.add(d.getSourceFileName(".class"));
                     }
                 }
             }
@@ -293,7 +250,7 @@ public class ParallelTestExecutor extends Builder {
     	String testName;
     	String suiteName;
     	try {
-    		BufferedReader br = new BufferedReader(new FileReader("/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"+filename));
+    		BufferedReader br = new BufferedReader(new FileReader(yatePath+filename));
     		String line = br.readLine();
     		while (line != null) {
     			lastSlash = line.lastIndexOf('/');
@@ -369,7 +326,7 @@ public class ParallelTestExecutor extends Builder {
      */
     static private void collect(TestResult r, Map<String, TestClass> data) {
     	// changed in order to work with yate tk
-    	if (yateTestJob && r instanceof CaseResult) {
+    	if (r instanceof CaseResult) {
     		CaseResult cr = (CaseResult) r;
     		if (! cr.isSkipped()) {
     			TestClass dp = new TestClass(cr);
@@ -377,12 +334,12 @@ public class ParallelTestExecutor extends Builder {
     		}
     		return; // no need to go deeper
     	}
-        if (!yateTestJob && r instanceof ClassResult) {
-            ClassResult cr = (ClassResult) r;
-            TestClass dp = new TestClass(cr);
-            data.put(dp.className, dp);
-            return; // no need to go deeper
-        }
+        // if (r instanceof ClassResult) {
+        //     ClassResult cr = (ClassResult) r;
+        //     TestClass dp = new TestClass(cr);
+        //     data.put(dp.className, dp);
+        //     return; // no need to go deeper
+        // }
         if (r instanceof TabulatedResult) {
             TabulatedResult tr = (TabulatedResult) r;
             for (TestResult child : tr.getChildren()) {
