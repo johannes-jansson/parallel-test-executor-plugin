@@ -11,6 +11,7 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.tasks.junit.ClassResult;
 import hudson.tasks.junit.CaseResult;
+import hudson.tasks.junit.SuiteResult; // added tk
 import hudson.tasks.junit.JUnitResultArchiver;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.TabulatedResult;
@@ -20,6 +21,8 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
+import java.io.BufferedReader;
+import java.io.FileReader; // tk added
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -39,6 +42,7 @@ public class ParallelTestExecutor extends Builder {
     private Parallelism parallelism;
 
     private String testJob;
+    private String testList;
     private String patternFile;
     private String includesPatternFile;
     private String testReportFiles;
@@ -49,9 +53,10 @@ public class ParallelTestExecutor extends Builder {
 
     @DataBoundConstructor
     // I added the yateTestJob and yatePath tk
-    public ParallelTestExecutor(Parallelism parallelism, String testJob, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, boolean yateTestJob, String yatePath) {
+    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, boolean yateTestJob, String yatePath) {
         this.parallelism = parallelism;
         this.testJob = testJob;
+        this.testList = testList;
         this.patternFile = patternFile;
         this.testReportFiles = testReportFiles;
         this.parameters = parameters;
@@ -66,6 +71,10 @@ public class ParallelTestExecutor extends Builder {
 
     public String getTestJob() {
         return testJob;
+    }
+
+    public String getTestList() {
+        return testList;
     }
 
     public String getPatternFile() {
@@ -162,6 +171,50 @@ public class ParallelTestExecutor extends Builder {
         } else {
 
             Map<String/*fully qualified class name*/, TestClass> data = new TreeMap<String, TestClass>();
+
+            /**
+             * Add the manual list to data here! tk
+             
+            
+            List<String> names = new ArrayList<String>();
+            String nbr;
+            for (int i=1; i<=20; i++) {
+            	if (i < 10) {nbr = "0" + i;} else {nbr = "" + i;}
+            	//names.add("/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/tests.test/pass_"
+            	names.add("tests.pass_"
+            			+ nbr);
+            }
+
+    		TestClass dp;
+            for (int i=0; i<20; i++) {
+            	dp = new TestClass(names.get(i), 10); // should be a variable tk
+            	data.put(dp.className, dp);
+            }
+
+
+            // CaseResult cr = new CaseResult(SuiteResult parent, String testName, String errorStackTrace)
+            // TestClass r = new TestClass(cr) 
+            
+            *
+             * End of temporary manual list thingy tk
+             */
+            
+            /**
+             * Read input file
+             */
+            List<String> names = readInputFile("pass.lst");
+            long defaultTime = 10; //millis
+
+    		TestClass dp;
+            for (int i=0; i<names.size(); i++) {
+            	dp = new TestClass(names.get(i), defaultTime); // should be a variable tk
+            	data.put(dp.className, dp);
+            }
+
+            /**
+             * END OF read input file
+             */
+
             collect(tr, data);
 
             // sort in the descending order of the duration
@@ -229,6 +282,36 @@ public class ParallelTestExecutor extends Builder {
             return r;
         }
     }
+    
+    /**
+     * Reads the values of input file
+     */
+    private static List<String> readInputFile(String filename) {
+    	List<String> lines = new ArrayList<String>();
+    	int lastSlash;
+    	int secondLastSlash;
+    	String testName;
+    	String suiteName;
+    	try {
+    		BufferedReader br = new BufferedReader(new FileReader("/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"+filename));
+    		String line = br.readLine();
+    		while (line != null) {
+    			lastSlash = line.lastIndexOf('/');
+    			secondLastSlash = line.lastIndexOf('/', lastSlash-1);
+    			testName = line.substring(lastSlash+1, line.lastIndexOf('.'));
+    			suiteName = line.substring(secondLastSlash+1, lastSlash);
+    			suiteName = suiteName.substring(0, suiteName.lastIndexOf('.'));
+
+    			lines.add(suiteName + '.' + testName);
+    			line = br.readLine();
+    		}
+    		br.close();
+    	} catch (Exception e) {
+    		System.out.println("Couldn't read file: "+filename);
+    		System.out.println(e.getMessage());
+    	}
+    	return lines;
+    }
 
     /**
      * Collects all the test reports
@@ -285,13 +368,15 @@ public class ParallelTestExecutor extends Builder {
      * Recursive visits the structure inside {@link hudson.tasks.test.TestResult}.
      */
     static private void collect(TestResult r, Map<String, TestClass> data) {
-    	  // changed in order to work with yate tk
-    	  if (yateTestJob && r instanceof CaseResult) {
-    	  	  CaseResult cr = (CaseResult) r;
-    	  	  TestClass dp = new TestClass(cr);
-            data.put(dp.className, dp);
-            return; // no need to go deeper
-    	  }
+    	// changed in order to work with yate tk
+    	if (yateTestJob && r instanceof CaseResult) {
+    		CaseResult cr = (CaseResult) r;
+    		if (! cr.isSkipped()) {
+    			TestClass dp = new TestClass(cr);
+    			data.put(dp.className, dp); // should work as an update, if already present... tk
+    		}
+    		return; // no need to go deeper
+    	}
         if (!yateTestJob && r instanceof ClassResult) {
             ClassResult cr = (ClassResult) r;
             TestClass dp = new TestClass(cr);

@@ -36,6 +36,12 @@ public class TestClass implements Comparable<TestClass> {
         this.duration = (long)(cr.getDuration()*1000);  // milliseconds is a good enough precision for us
     }
 
+    // Constructor for adding dummy test classes tk
+    public TestClass(String className, long duration) {
+        this.className = className;
+        this.duration = (long)(duration*1000);  // milliseconds is a good enough precision for us
+    }
+
     public int compareTo(TestClass that) {
         long l = this.duration - that.duration;
         // sort them in the descending order
