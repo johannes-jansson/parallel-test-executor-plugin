@@ -44,7 +44,6 @@ public class ParallelTestExecutor extends Builder {
     private String testJob;
     private static String testList = "pass.lst"; // added? tk SHOULD NOT BE STATIC!
     private String patternFile;
-    private String includesPatternFile = "pass.lst"; // default value added tk
     private String testReportFiles;
     private boolean doNotArchiveTestResults = false;
     private static String yatePath = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"; // added tk SHOULD NOT BE STATIC!
@@ -63,7 +62,6 @@ public class ParallelTestExecutor extends Builder {
         this.doNotArchiveTestResults = !archiveTestResults;
         this.yatePath = yatePath; // added tk
         this.defaultTime = defaultTime; // added tk
-        this.includesPatternFile = testList;
     }
 
     public Parallelism getParallelism() {
@@ -76,6 +74,11 @@ public class ParallelTestExecutor extends Builder {
 
     public String getTestList() {
         return testList;
+    }
+
+    @DataBoundSetter // tk added
+    public void setTestList(String testList) {
+        this.testList = testList;
     }
 
     public int getDefaultTime() {
@@ -93,12 +96,12 @@ public class ParallelTestExecutor extends Builder {
 
     @CheckForNull
     public String getIncludesPatternFile() {
-        return includesPatternFile;
+        return testList;
     }
 
     @DataBoundSetter
     public void setIncludesPatternFile(String includesPatternFile) {
-        this.includesPatternFile = Util.fixEmpty(includesPatternFile);
+        this.testList = Util.fixEmpty(includesPatternFile);
     }
 
     public String getTestReportFiles() {
@@ -144,11 +147,11 @@ public class ParallelTestExecutor extends Builder {
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         FilePath dir = build.getWorkspace().child("test-splits");
         dir.deleteRecursive();
-        List<InclusionExclusionPattern> splits = findTestSplits(parallelism, build, listener, includesPatternFile != null);
+        List<InclusionExclusionPattern> splits = findTestSplits(parallelism, build, listener);
         for (int i = 0; i < splits.size(); i++) {
             InclusionExclusionPattern pattern = splits.get(i);
             //OutputStream os = dir.child("split." + i + "." + (pattern.isIncludes() ? "include" : "exclude") + ".exl").write();
-            OutputStream os = dir.child("split." + i + "." + (pattern.isIncludes() ? "include.lst" : "exclude.exl")).write(); // changed tk
+            OutputStream os = dir.child("split." + i + ".include.lst").write(); // changed tk
             try {
                 PrintWriter pw = new PrintWriter(new OutputStreamWriter(os, Charsets.UTF_8));
                 for (String filePattern : pattern.getList()) {
@@ -169,7 +172,7 @@ public class ParallelTestExecutor extends Builder {
         return true;
     }
 
-    static List<InclusionExclusionPattern> findTestSplits(Parallelism parallelism, Run<?,?> build, TaskListener listener, boolean generateInclusions) {
+    static List<InclusionExclusionPattern> findTestSplits(Parallelism parallelism, Run<?,?> build, TaskListener listener) {
         TestResult tr = findPreviousTestResult(build, listener);
         if (tr == null) {
             listener.getLogger().println("No record available, so executing everything in one place");
@@ -233,12 +236,10 @@ public class ParallelTestExecutor extends Builder {
             List<InclusionExclusionPattern> r = new ArrayList<InclusionExclusionPattern>();
             for (int i = 0; i < n; i++) {
                 Knapsack k = knapsacks.get(i);
-                //boolean shouldIncludeElements = generateInclusions && i != 0;
-                boolean shouldIncludeElements = generateInclusions; // changed tk
                 List<String> elements = new ArrayList<String>();
-                r.add(new InclusionExclusionPattern(elements, shouldIncludeElements));
+                r.add(new InclusionExclusionPattern(elements, true));
                 for (TestClass d : sorted) {
-                    if (shouldIncludeElements == (d.knapsack == k)) {
+                    if (d.knapsack == k) { // tk what is this?
                     	// String modifications, mostly hard coded, needs to be changed... tk
                     	String lmnt = d.getSourceFileName(".exp");
                     	String[] lmnts = lmnt.split("/");
@@ -316,9 +317,6 @@ public class ParallelTestExecutor extends Builder {
         List<MultipleBinaryFileParameterFactory.ParameterBinding> parameterBindings = new ArrayList<MultipleBinaryFileParameterFactory.ParameterBinding>();
         //parameterBindings.add(new MultipleBinaryFileParameterFactory.ParameterBinding(getPatternFile(), "test-splits/split.*.exclude.exl"));
         parameterBindings.add(new MultipleBinaryFileParameterFactory.ParameterBinding(getIncludesPatternFile(), "test-splits/split.*.include.lst")); // changed tk
-        // if (includesPatternFile != null) {
-        //     parameterBindings.add(new MultipleBinaryFileParameterFactory.ParameterBinding(getIncludesPatternFile(), "test-splits/split.*.include.lst"));
-        // }
         MultipleBinaryFileParameterFactory factory = new MultipleBinaryFileParameterFactory(parameterBindings);
         BlockableBuildTriggerConfig config = new BlockableBuildTriggerConfig(
                 testJob,
