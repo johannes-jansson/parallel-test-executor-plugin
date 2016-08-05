@@ -11,7 +11,7 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.tasks.junit.ClassResult;
 import hudson.tasks.junit.CaseResult;
-import hudson.tasks.junit.SuiteResult; // added tk
+import hudson.tasks.junit.SuiteResult;
 import hudson.tasks.junit.JUnitResultArchiver;
 import hudson.tasks.test.AbstractTestResultAction;
 import hudson.tasks.test.TabulatedResult;
@@ -22,7 +22,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 
 import java.io.BufferedReader;
-import java.io.FileReader; // tk added
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -42,26 +42,28 @@ public class ParallelTestExecutor extends Builder {
     private Parallelism parallelism;
 
     private String testJob;
-    private static String testList = "pass.lst"; // added? tk SHOULD NOT BE STATIC!
-    private String patternFile;
+    private static String testList = "pass.lst"; //tk SHOULD NOT BE STATIC!
     private String testReportFiles;
     private boolean doNotArchiveTestResults = false;
-    private static String yatePath = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"; // added tk SHOULD NOT BE STATIC!
-    private static int defaultTime = 10; //millis added tk SHOULD NOT BE STATIC!
+    private static String yatePath = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"; //tk SHOULD NOT BE STATIC?
+    private static int defaultTime = 1; //tk SHOULD NOT BE STATIC?
     private List<AbstractBuildParameters> parameters;
 
     @DataBoundConstructor
-    // I added the yatePath tk
-    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String patternFile, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, String yatePath, int defaultTime) {
+    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, String yatePath, int defaultTime) {
         this.parallelism = parallelism;
         this.testJob = testJob;
         this.testList = testList;
-        this.patternFile = patternFile;
         this.testReportFiles = testReportFiles;
+        // Always send the YATEPATH as a parameter to the test slave
+        if (parameters == null) { 
+        	parameters = new ArrayList<AbstractBuildParameters>();
+        }
+        parameters.add(new PredefinedBuildParameters("YATEPATH="+yatePath));
         this.parameters = parameters;
         this.doNotArchiveTestResults = !archiveTestResults;
-        this.yatePath = yatePath; // added tk
-        this.defaultTime = defaultTime; // added tk
+        this.yatePath = yatePath;
+        this.defaultTime = defaultTime;
     }
 
     public Parallelism getParallelism() {
@@ -76,40 +78,12 @@ public class ParallelTestExecutor extends Builder {
         return testList;
     }
 
-    @DataBoundSetter // tk added
-    public void setTestList(String testList) {
-        this.testList = testList;
-    }
-
     public int getDefaultTime() {
         return defaultTime;
     }
     
-    @DataBoundSetter
-    public void setDefaultTime(int defaultTime) {
-    	this.defaultTime = defaultTime;
-    }
-
-    public String getPatternFile() {
-        return patternFile;
-    }
-
-    @CheckForNull
-    public String getIncludesPatternFile() {
-        return testList;
-    }
-
-    @DataBoundSetter
-    public void setIncludesPatternFile(String includesPatternFile) {
-        this.testList = Util.fixEmpty(includesPatternFile);
-    }
-
     public String getTestReportFiles() {
         return testReportFiles;
-    }
-
-    public boolean isArchiveTestResults() {
-        return !doNotArchiveTestResults;
     }
 
     public String getYatePath() {
@@ -118,6 +92,20 @@ public class ParallelTestExecutor extends Builder {
 
     public List<AbstractBuildParameters> getParameters() {
         return parameters;
+    }
+
+    public boolean isArchiveTestResults() {
+        return !doNotArchiveTestResults;
+    }
+
+    @DataBoundSetter
+    public void setTestList(String testList) {
+        this.testList = testList;
+    }
+
+    @DataBoundSetter
+    public void setDefaultTime(int defaultTime) {
+    	this.defaultTime = defaultTime;
     }
 
     /**
@@ -150,8 +138,7 @@ public class ParallelTestExecutor extends Builder {
         List<InclusionExclusionPattern> splits = findTestSplits(parallelism, build, listener);
         for (int i = 0; i < splits.size(); i++) {
             InclusionExclusionPattern pattern = splits.get(i);
-            //OutputStream os = dir.child("split." + i + "." + (pattern.isIncludes() ? "include" : "exclude") + ".exl").write();
-            OutputStream os = dir.child("split." + i + ".include.lst").write(); // changed tk
+            OutputStream os = dir.child("split." + i + ".include.lst").write(); //tkt
             try {
                 PrintWriter pw = new PrintWriter(new OutputStreamWriter(os, Charsets.UTF_8));
                 for (String filePattern : pattern.getList()) {
@@ -174,84 +161,82 @@ public class ParallelTestExecutor extends Builder {
 
     static List<InclusionExclusionPattern> findTestSplits(Parallelism parallelism, Run<?,?> build, TaskListener listener) {
         TestResult tr = findPreviousTestResult(build, listener);
-        if (tr == null) {
-            listener.getLogger().println("No record available, so executing everything in one place");
-            return Collections.singletonList(new InclusionExclusionPattern(Collections.<String>emptyList(), false));
-        } else {
+        // if (tr == null) {
+        //     listener.getLogger().println("No record available, so executing everything in one place");
+        //     return Collections.singletonList(new InclusionExclusionPattern(Collections.<String>emptyList(), false));
+        // } else {
 
-            Map<String/*fully qualified class name*/, TestClass> data = new TreeMap<String, TestClass>();
-            
-            // added tk
-            List<String> names = readInputFile(testList);
+        Map<String/*fully qualified class name*/, TestClass> data = new TreeMap<String, TestClass>();
+        
+        // Read input lst file
+        List<String> names = readInputFile(testList);
 
-            // added tk
-    		TestClass dp;
-            for (int i=0; i<names.size(); i++) {
-            	dp = new TestClass(names.get(i), defaultTime * 1000); // in milliseconds
-            	data.put(dp.className, dp);
-            }
+        // Generate TestClasses from the input file first
+    	TestClass dp;
+        for (int i=0; i<names.size(); i++) {
+        	dp = new TestClass(names.get(i), defaultTime * 1000); // convert to milliseconds
+        	data.put(dp.className, dp);
+        }
 
 
-            collect(tr, data);
+        collect(tr, data);
 
-            // sort in the descending order of the duration
-            List<TestClass> sorted = new ArrayList<TestClass>(data.values());
-            Collections.sort(sorted);
+        // sort in the descending order of the duration
+        List<TestClass> sorted = new ArrayList<TestClass>(data.values());
+        Collections.sort(sorted);
 
-            // degree of the parallelism. we need minimum 1
-            final int n = Math.max(1, parallelism.calculate(sorted));
+        // degree of the parallelism. we need minimum 1
+        final int n = Math.max(1, parallelism.calculate(sorted));
 
-            List<Knapsack> knapsacks = new ArrayList<Knapsack>(n);
-            for (int i = 0; i < n; i++)
-                knapsacks.add(new Knapsack());
+        List<Knapsack> knapsacks = new ArrayList<Knapsack>(n);
+        for (int i = 0; i < n; i++)
+            knapsacks.add(new Knapsack());
 
-            /*
-                This packing problem is a NP-complete problem, so we solve
-                this simply by a greedy algorithm. We pack heavier items first,
-                and the result should be of roughly equal size
-             */
-            PriorityQueue<Knapsack> q = new PriorityQueue<Knapsack>(knapsacks);
+        /*
+            This packing problem is a NP-complete problem, so we solve
+            this simply by a greedy algorithm. We pack heavier items first,
+            and the result should be of roughly equal size
+         */
+        PriorityQueue<Knapsack> q = new PriorityQueue<Knapsack>(knapsacks);
+        for (TestClass d : sorted) {
+            Knapsack k = q.poll();
+            k.add(d);
+            q.add(k);
+        }
+
+        long total = 0, min = Long.MAX_VALUE, max = Long.MIN_VALUE;
+        for (Knapsack k : knapsacks) {
+            total += k.total;
+            max = Math.max(max, k.total);
+            min = Math.min(min, k.total);
+        }
+        long average = total / n;
+        long variance = 0;
+        for (Knapsack k : knapsacks) {
+            variance += pow(k.total - average);
+        }
+        variance /= n;
+        long stddev = (long) Math.sqrt(variance);
+        listener.getLogger().printf("%d test classes (%dms) divided into %d sets. Min=%dms, Average=%dms, Max=%dms, stddev=%dms\n",
+                data.size(), total, n, min, average, max, stddev);
+
+        List<InclusionExclusionPattern> r = new ArrayList<InclusionExclusionPattern>();
+        for (int i = 0; i < n; i++) {
+            Knapsack k = knapsacks.get(i);
+            List<String> elements = new ArrayList<String>();
+            r.add(new InclusionExclusionPattern(elements, true)); // true since we're only dealing with inclusion lists tk
             for (TestClass d : sorted) {
-                Knapsack k = q.poll();
-                k.add(d);
-                q.add(k);
-            }
-
-            long total = 0, min = Long.MAX_VALUE, max = Long.MIN_VALUE;
-            for (Knapsack k : knapsacks) {
-                total += k.total;
-                max = Math.max(max, k.total);
-                min = Math.min(min, k.total);
-            }
-            long average = total / n;
-            long variance = 0;
-            for (Knapsack k : knapsacks) {
-                variance += pow(k.total - average);
-            }
-            variance /= n;
-            long stddev = (long) Math.sqrt(variance);
-            listener.getLogger().printf("%d test classes (%dms) divided into %d sets. Min=%dms, Average=%dms, Max=%dms, stddev=%dms\n",
-                    data.size(), total, n, min, average, max, stddev);
-
-            List<InclusionExclusionPattern> r = new ArrayList<InclusionExclusionPattern>();
-            for (int i = 0; i < n; i++) {
-                Knapsack k = knapsacks.get(i);
-                List<String> elements = new ArrayList<String>();
-                r.add(new InclusionExclusionPattern(elements, true));
-                for (TestClass d : sorted) {
-                    if (d.knapsack == k) { // tk what is this?
-                    	// String modifications, mostly hard coded, needs to be changed... tk
-                    	String lmnt = d.getSourceFileName(".exp");
-                    	String[] lmnts = lmnt.split("/");
-                    	lmnt = yatePath + lmnts[0] + ".test/" + lmnts[1];                    	
-                    	elements.add(lmnt);
-                        //elements.add(d.getSourceFileName(".java"));
-                        //elements.add(d.getSourceFileName(".class"));
-                    }
+                if (d.knapsack == k) {
+                	// String modifications, mostly hard coded, may need to be changed... tk
+                	String lmnt = d.getSourceFileName(".exp");
+                	String[] lmnts = lmnt.split("/");
+                	lmnt = yatePath + lmnts[0] + ".test/" + lmnts[1];                    	
+                	elements.add(lmnt);
+                	//elements.add(yatePath + d.getSourceFileName(".exp")); // tkt
                 }
             }
-            return r;
         }
+        return r;
     }
     
     /**
@@ -266,7 +251,7 @@ public class ParallelTestExecutor extends Builder {
     	try {
     		BufferedReader br = new BufferedReader(new FileReader(yatePath+filename));
     		String line = br.readLine();
-    		while (line != null) {
+    		while (line != null) { //tkt
     			lastSlash = line.lastIndexOf('/');
     			secondLastSlash = line.lastIndexOf('/', lastSlash-1);
     			testName = line.substring(lastSlash+1, line.lastIndexOf('.'));
@@ -315,8 +300,7 @@ public class ParallelTestExecutor extends Builder {
 
         // actual logic of child process triggering is left up to the parameterized build
         List<MultipleBinaryFileParameterFactory.ParameterBinding> parameterBindings = new ArrayList<MultipleBinaryFileParameterFactory.ParameterBinding>();
-        //parameterBindings.add(new MultipleBinaryFileParameterFactory.ParameterBinding(getPatternFile(), "test-splits/split.*.exclude.exl"));
-        parameterBindings.add(new MultipleBinaryFileParameterFactory.ParameterBinding(getIncludesPatternFile(), "test-splits/split.*.include.lst")); // changed tk
+        parameterBindings.add(new MultipleBinaryFileParameterFactory.ParameterBinding(getTestList(), "test-splits/split.*.include.lst"));
         MultipleBinaryFileParameterFactory factory = new MultipleBinaryFileParameterFactory(parameterBindings);
         BlockableBuildTriggerConfig config = new BlockableBuildTriggerConfig(
                 testJob,
@@ -337,21 +321,16 @@ public class ParallelTestExecutor extends Builder {
      * Recursive visits the structure inside {@link hudson.tasks.test.TestResult}.
      */
     static private void collect(TestResult r, Map<String, TestClass> data) {
-    	// changed in order to work with yate tk
     	if (r instanceof CaseResult) {
     		CaseResult cr = (CaseResult) r;
     		if (! cr.isSkipped()) {
     			TestClass dp = new TestClass(cr);
-    			data.put(dp.className, dp); // should work as an update, if already present... tk
+    			if (data.containsKey(dp.className)) {//tktk don't add classes not in inclusion list!
+    				data.put(dp.className, dp); // adds or updates TestClass
+    			}
     		}
     		return; // no need to go deeper
     	}
-        // if (r instanceof ClassResult) {
-        //     ClassResult cr = (ClassResult) r;
-        //     TestClass dp = new TestClass(cr);
-        //     data.put(dp.className, dp);
-        //     return; // no need to go deeper
-        // }
         if (r instanceof TabulatedResult) {
             TabulatedResult tr = (TabulatedResult) r;
             for (TestResult child : tr.getChildren()) {
