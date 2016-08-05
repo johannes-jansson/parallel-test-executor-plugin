@@ -43,6 +43,7 @@ public class ParallelTestExecutor extends Builder {
 
     private String testJob;
     private static String testList = "pass.lst"; //tk SHOULD NOT BE STATIC!
+    private static String outputTestList = "pass.lst"; //tk SHOULD NOT BE STATIC!
     private String testReportFiles;
     private boolean doNotArchiveTestResults = false;
     private static String yatePath = "/Users/johannes/git/parallel-test-executor-plugin/work/yates-stuff/"; //tk SHOULD NOT BE STATIC?
@@ -50,10 +51,11 @@ public class ParallelTestExecutor extends Builder {
     private List<AbstractBuildParameters> parameters;
 
     @DataBoundConstructor
-    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, String yatePath, int defaultTime) {
+    public ParallelTestExecutor(Parallelism parallelism, String testJob, String testList, String outputTestList, String testReportFiles, boolean archiveTestResults, List<AbstractBuildParameters> parameters, String yatePath, int defaultTime) {
         this.parallelism = parallelism;
         this.testJob = testJob;
         this.testList = testList;
+        this.outputTestList = outputTestList;
         this.testReportFiles = testReportFiles;
         // Always send the YATEPATH as a parameter to the test slave
         if (parameters == null) { 
@@ -76,6 +78,10 @@ public class ParallelTestExecutor extends Builder {
 
     public String getTestList() {
         return testList;
+    }
+
+    public String getOutputTestList() {
+        return outputTestList;
     }
 
     public int getDefaultTime() {
@@ -101,6 +107,11 @@ public class ParallelTestExecutor extends Builder {
     @DataBoundSetter
     public void setTestList(String testList) {
         this.testList = testList;
+    }
+
+    @DataBoundSetter
+    public void setOutputTestList(String outputTestList) {
+        this.outputTestList = outputTestList;
     }
 
     @DataBoundSetter
@@ -300,7 +311,7 @@ public class ParallelTestExecutor extends Builder {
 
         // actual logic of child process triggering is left up to the parameterized build
         List<MultipleBinaryFileParameterFactory.ParameterBinding> parameterBindings = new ArrayList<MultipleBinaryFileParameterFactory.ParameterBinding>();
-        parameterBindings.add(new MultipleBinaryFileParameterFactory.ParameterBinding(getTestList(), "test-splits/split.*.include.lst"));
+        parameterBindings.add(new MultipleBinaryFileParameterFactory.ParameterBinding(getOutputTestList(), "test-splits/split.*.include.lst")); //tktktktk
         MultipleBinaryFileParameterFactory factory = new MultipleBinaryFileParameterFactory(parameterBindings);
         BlockableBuildTriggerConfig config = new BlockableBuildTriggerConfig(
                 testJob,

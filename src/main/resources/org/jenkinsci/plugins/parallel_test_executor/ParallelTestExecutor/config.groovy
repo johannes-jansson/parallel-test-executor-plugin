@@ -38,6 +38,9 @@ f.block {
 }
 
 f.advanced {
+    f.entry(title:"Inclusion file name in the test job", field:"outputTestList") {
+        f.textbox("pass.lst")
+    }
 	f.entry(title:"Test report directory in the test job", field:"testReportFiles") {
 	    f.textbox(default: "statistics.xml")
 	}
